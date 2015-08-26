@@ -621,6 +621,31 @@ to us to make sure it's nicely indented."
       (kill-buffer)
       (find-file new-path))))
 
+(defun cljr--op-supported? (op)
+  "Is the OP we require provided by the current middleware stack?"
+  (nrepl-op-supported-p op (cider-current-repl)))
+
+(defun cljr--assert-middleware ()
+  (unless (featurep 'cider)
+    (error "CIDER isn't installed!"))
+  (unless (cider-connected-p)
+    (error "CIDER isn't connected!"))
+  (unless (cljr--op-supported? "find-symbol")
+    (error "nrepl-refactor middleware not available! Did you remember to install it?")))
+
+(defun cljr--ensure-op-supported (op)
+  "Check for support of middleware op OP.
+Signal an error if it is not supported."
+  (cljr--assert-middleware)
+  (unless (cljr--op-supported? op)
+    (error "Can't find nREPL middleware providing op \"%s\".  Please, install (or update) refactor-nrepl %s and restart the REPL." op (upcase cljr-version))))
+
+(defun cljr--assert-leiningen-project ()
+  (unless (string= (file-name-nondirectory (or (cljr--project-file) ""))
+                   "project.clj")
+    (error "Can't find project.clj!")))
+
+
 ;; ------ ns statements -----------
 
 (defun cljr--goto-ns ()
@@ -921,7 +946,7 @@ word test in it and whether the file lives under the test/ directory."
 
 (defun cljr--maybe-clean-or-sort-ns ()
   (if (and cljr-auto-clean-ns (cider-connected-p)
-           (nrepl-op-supported-p "clean-ns"))
+           (cljr--op-supported? "clean-ns"))
       (cljr-clean-ns)
     (when cljr-auto-sort-ns
       (cljr-sort-ns))))
@@ -1860,7 +1885,7 @@ sorts the project's dependency vectors."
           (ignore-errors (-map 'funcall cljr-project-clean-functions)))))
     (when cljr-project-clean-sorts-project-dependencies
       (cljr-sort-project-dependencies))
-    (if (and (cider-connected-p) (nrepl-op-supported-p "warm-ast-cache"))
+    (if (and (cider-connected-p) (cljr--op-supported? "warm-ast-cache"))
         (cljr--warm-ast-cache))
     (message "Project clean done.")))
 
@@ -2072,26 +2097,6 @@ before non-empty. This lets 1.7.0 be sorted above 1.7.0-RC1."
     (when cljr-hotload-dependencies
       (paredit-backward-down)
       (cljr-hotload-dependency))))
-
-(defun cljr--assert-middleware ()
-  (unless (featurep 'cider)
-    (error "CIDER isn't installed!"))
-  (unless (cider-connected-p)
-    (error "CIDER isn't connected!"))
-  (unless (nrepl-op-supported-p "find-symbol")
-    (error "nrepl-refactor middleware not available! Did you remember to install it?")))
-
-(defun cljr--ensure-op-supported (op)
-  "Check for support of middleware op OP.
-Signal an error if it is not supported."
-  (cljr--assert-middleware)
-  (unless (nrepl-op-supported-p op)
-    (error "Can't find nREPL middleware providing op \"%s\".  Please, install (or update) refactor-nrepl %s and restart the REPL." op (upcase cljr-version))))
-
-(defun cljr--assert-leiningen-project ()
-  (unless (string= (file-name-nondirectory (or (cljr--project-file) ""))
-                   "project.clj")
-    (error "Can't find project.clj!")))
 
 ;;;###autoload
 (defun cljr-add-project-dependency (force)
@@ -2836,7 +2841,7 @@ Defaults to the dependency vector at point, but prompts if none is found."
   (cljr--indent-defun))
 
 (defun cljr--configure-middleware (&optional callback)
-  (when (nrepl-op-supported-p "configure")
+  (when (cljr--op-supported? "configure")
     (let ((opts (concat "{:prefix-rewriting "
                         (if cljr-favor-prefix-notation "true" "false")
                         " :debug " (if cljr--debug-mode "true" "false")
@@ -2859,7 +2864,7 @@ changing settings."
 
 (defun cljr--check-nrepl-ops ()
   "Check whether all nREPL ops are present and emit a warning when not."
-  (let ((missing-ops (-remove 'nrepl-op-supported-p cljr--nrepl-ops)))
+  (let ((missing-ops (-remove #'cljr--op-supported? cljr--nrepl-ops)))
     (when missing-ops
       (cider-repl-emit-interactive-err-output
        (format "WARNING: The following nREPL ops are not supported:
