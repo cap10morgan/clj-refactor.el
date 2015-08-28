@@ -623,7 +623,7 @@ to us to make sure it's nicely indented."
 
 (defun cljr--op-supported? (op)
   "Is the OP we require provided by the current middleware stack?"
-  (nrepl-op-supported-p op (cider-current-repl)))
+  (cider-nrepl-op-supported-p op))
 
 (defun cljr--assert-middleware ()
   (unless (featurep 'cider)
