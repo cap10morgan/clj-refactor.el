@@ -32,26 +32,6 @@
        (lambda ()
          (setq cljr-project-clean-prompt nil)))
 
-(Given "^I switch auto-sort off$"
-       (lambda ()
-         (setq cljr-auto-sort-ns nil)))
-
-(Given "^I switch auto-sort on$"
-       (lambda ()
-         (setq cljr-auto-sort-ns t)))
-
-(Given "^I set sort comparator to string length$"
-       (lambda ()
-         (setq cljr-sort-comparator 'cljr--string-length-comparator)))
-
-(Given "^I set sort comparator to semantic$"
-       (lambda ()
-         (setq cljr-sort-comparator 'cljr--semantic-comparator)))
-
-(Given "^I set sort comparator to string natural$"
-       (lambda ()
-         (setq cljr-sort-comparator 'cljr--string-natural-comparator)))
-
 (Given "^I exit multiple-cursors-mode"
        (lambda ()
          (multiple-cursors-mode 0)))
@@ -431,3 +411,14 @@ pprint (cljs.pprint)}}"))))
 (And "^cljr--ns-path returns \"\\([^\"]+\\)\"$"
      (lambda (path)
        (setq cljr--ns-path-return-value path)))
+
+(And "^cljr--clean-ns sorts stuff$"
+     (lambda ()
+       ;; This might look slightlyi convoluted, but if we just return
+       ;; the correct ns form we're not testing the first half of the
+       ;; test
+       (cljr--goto-ns)
+       (replace-regexp "\\[clj-time.core :refer :all\\]\n\\(\\s-+\\)\\[clojure.strings :as s\\]"
+                       "[clojure.strings :as s]
+           [clj-time.core :refer :all]"
+                       nil (point) (cljr--point-after 'paredit-forward))))

@@ -17,6 +17,7 @@ Feature: Add to namespace
     And I press "C-! ar"
     And I type "[clj-time.core :refer :all]"
     And I press "TAB"
+    And cljr--clean-ns sorts stuff
     Then I should see:
     """
     (ns cljr.core
